@@ -1,0 +1,13 @@
+{
+    "name": "wokafoka/bulk-woocommerce-categories",
+    "description": "WordPress admin entry point for WokaFoka Bulk WooCommerce Categories.",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "WokaFoka\\BulkWooCommerceCategories\\": "src/"
+        }
+    }
+}
