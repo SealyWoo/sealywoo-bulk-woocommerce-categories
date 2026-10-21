@@ -31,6 +31,24 @@ final class ProductsTable extends \WP_List_Table {
 		);
 	}
 
+	protected function get_sortable_columns(): array {
+		return array(
+			'id'   => array( 'id', false, '', __( 'Table ordered by ID.', 'wokafoka-bulk-woocommerce-categories' ), 'asc' ),
+			'name' => array( 'name', false, '', __( 'Table ordered by name.', 'wokafoka-bulk-woocommerce-categories' ) ),
+			'sku'  => array( 'sku', false, '', __( 'Table ordered by SKU.', 'wokafoka-bulk-woocommerce-categories' ) ),
+		);
+	}
+
+	public function get_sorting(): array {
+		$orderby = isset( $_GET['orderby'] ) && is_string( $_GET['orderby'] ) ? wp_unslash( $_GET['orderby'] ) : 'id';
+		$order   = isset( $_GET['order'] ) && is_string( $_GET['order'] ) ? strtolower( wp_unslash( $_GET['order'] ) ) : 'asc';
+
+		return array(
+			'orderby' => in_array( $orderby, array( 'id', 'name', 'sku' ), true ) ? $orderby : 'id',
+			'order'   => in_array( $order, array( 'asc', 'desc' ), true ) ? $order : 'asc',
+		);
+	}
+
 	public function prepare_items(): void {
 		$this->items = array();
 		$this->error = null;
@@ -61,7 +79,13 @@ final class ProductsTable extends \WP_List_Table {
 			return;
 		}
 
-		$items = $this->query->get_page( $per_page, ( $this->get_pagenum() - 1 ) * $per_page );
+		$sorting = $this->get_sorting();
+		$items   = $this->query->get_page(
+			$per_page,
+			( $this->get_pagenum() - 1 ) * $per_page,
+			$sorting['orderby'],
+			$sorting['order']
+		);
 
 		if ( is_wp_error( $items ) ) {
 			$this->error = $items;

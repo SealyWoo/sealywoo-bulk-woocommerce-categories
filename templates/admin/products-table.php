@@ -10,5 +10,7 @@ defined( 'ABSPATH' ) || exit;
 <?php endif; ?>
 <form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
 	<input type="hidden" name="page" value="<?php echo esc_attr( $page_slug ); ?>">
+	<input type="hidden" name="orderby" value="<?php echo esc_attr( $sorting['orderby'] ); ?>">
+	<input type="hidden" name="order" value="<?php echo esc_attr( $sorting['order'] ); ?>">
 	<?php $table->display(); ?>
 </form>

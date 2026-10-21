@@ -29,15 +29,23 @@ final class ProductQuery {
 	/**
 	 * @return array|\WP_Error
 	 */
-	public function get_page( int $per_page, int $offset ) {
-		$products = $this->query(
-			array(
-				'limit'    => $per_page,
-				'offset'   => $offset,
-				'paginate' => false,
-				'return'   => 'objects',
-			)
+	public function get_page( int $per_page, int $offset, string $orderby = 'id', string $order = 'asc' ) {
+		$orderby = in_array( $orderby, array( 'id', 'name', 'sku' ), true ) ? $orderby : 'id';
+		$order   = strtoupper( $order ) === 'DESC' ? 'DESC' : 'ASC';
+		$args    = array(
+			'limit'    => $per_page,
+			'offset'   => $offset,
+			'paginate' => false,
+			'return'   => 'objects',
+			'orderby'  => $orderby === 'name' ? 'title ID' : 'ID',
+			'order'    => $order,
 		);
+
+		if ( $orderby === 'sku' ) {
+			$args['wokafoka_sku_order'] = $order;
+		}
+
+		$products = $this->query( $args );
 
 		if ( is_wp_error( $products ) ) {
 			return $products;
@@ -88,6 +96,13 @@ final class ProductQuery {
 			$statuses[] = 'private';
 		}
 
+		$sku_sorting = null;
+
+		if ( isset( $args['wokafoka_sku_order'] ) ) {
+			$sku_sorting = $this->get_sku_sorting_filter();
+			add_filter( 'posts_clauses', $sku_sorting, 10, 2 );
+		}
+
 		try {
 			return wc_get_products(
 				array_merge(
@@ -101,6 +116,31 @@ final class ProductQuery {
 			);
 		} catch ( \Exception $exception ) {
 			return new \WP_Error( 'product_query_failed' );
+		} finally {
+			if ( $sku_sorting !== null ) {
+				remove_filter( 'posts_clauses', $sku_sorting, 10 );
+			}
 		}
+	}
+
+	private function get_sku_sorting_filter(): \Closure {
+		return static function ( array $clauses, \WP_Query $query ): array {
+			global $wpdb;
+
+			$order = $query->get( 'wokafoka_sku_order' );
+
+			if ( ! in_array( $order, array( 'ASC', 'DESC' ), true ) ) {
+				return $clauses;
+			}
+
+			if ( strpos( $clauses['join'], ' AS wokafoka_product_sorting ' ) === false ) {
+				$clauses['join'] .= " LEFT JOIN {$wpdb->wc_product_meta_lookup} AS wokafoka_product_sorting"
+					. " ON ({$wpdb->posts}.ID = wokafoka_product_sorting.product_id)";
+			}
+
+			$clauses['orderby'] = "wokafoka_product_sorting.sku {$order}, {$wpdb->posts}.ID {$order}";
+
+			return $clauses;
+		};
 	}
 }

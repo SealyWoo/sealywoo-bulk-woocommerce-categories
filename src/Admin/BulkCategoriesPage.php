@@ -73,6 +73,7 @@ final class BulkCategoriesPage {
 		$table     = $this->table;
 		$error     = $table->get_error();
 		$page_slug = self::SLUG;
+		$sorting   = $table->get_sorting();
 
 		require $this->template_path;
 	}
