@@ -3,11 +3,8 @@
 namespace WokaFoka\BulkWooCommerceCategories\Admin;
 
 final class Menu {
-	private BulkCategoriesPage $page;
-
-	public function __construct( BulkCategoriesPage $page ) {
-		$this->page = $page;
-	}
+	public const CAPABILITY = 'manage_woocommerce';
+	public const SLUG       = 'wokafoka';
 
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
@@ -15,26 +12,39 @@ final class Menu {
 
 	public function register_menu(): void {
 		$page_title = __( 'Bulk Woocommerce Categories', 'wokafoka-bulk-woocommerce-categories' );
+		$render     = function (): void {
+			$this->render_page();
+		};
 
-		$page_hook = add_menu_page(
+		add_menu_page(
 			$page_title,
 			'WokaFoka',
-			BulkCategoriesPage::CAPABILITY,
-			BulkCategoriesPage::SLUG,
-			array( $this->page, 'render' ),
+			self::CAPABILITY,
+			self::SLUG,
+			$render,
 			'dashicons-category',
 			55.4
 		);
 
 		add_submenu_page(
-			BulkCategoriesPage::SLUG,
+			self::SLUG,
 			$page_title,
 			$page_title,
-			BulkCategoriesPage::CAPABILITY,
-			BulkCategoriesPage::SLUG,
-			array( $this->page, 'render' )
+			self::CAPABILITY,
+			self::SLUG,
+			$render
 		);
+	}
 
-		$this->page->register_screen( $page_hook );
+	private function render_page(): void {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die(
+				esc_html__( 'You do not have permission to access this page.', 'wokafoka-bulk-woocommerce-categories' ),
+				'',
+				array( 'response' => 403 )
+			);
+		}
+
+		require __DIR__ . '/../../templates/admin/bulk-categories.php';
 	}
 }

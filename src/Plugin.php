@@ -12,15 +12,14 @@ final class Plugin {
 			return;
 		}
 
+		$menu = new Menu();
+		$menu->register();
+
 		$page = new BulkCategoriesPage(
 			new ProductQuery(),
-			dirname( __DIR__ ) . '/templates/admin/bulk-categories.php'
+			dirname( __DIR__ ) . '/templates/admin/products-table.php'
 		);
 
 		$page->register();
-
-		$menu = new Menu( $page );
-
-		$menu->register();
 	}
 }
