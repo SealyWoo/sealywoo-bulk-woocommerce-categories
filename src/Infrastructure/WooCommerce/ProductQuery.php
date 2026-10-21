@@ -6,12 +6,13 @@ final class ProductQuery {
 	/**
 	 * @return int|\WP_Error
 	 */
-	public function count() {
+	public function count( string $search = '' ) {
 		$result = $this->query(
 			array(
-				'limit'    => 1,
-				'paginate' => true,
-				'return'   => 'ids',
+				'limit'           => 1,
+				'paginate'        => true,
+				'return'          => 'ids',
+				'wokafoka_search' => $search,
 			)
 		);
 
@@ -29,16 +30,17 @@ final class ProductQuery {
 	/**
 	 * @return array|\WP_Error
 	 */
-	public function get_page( int $per_page, int $offset, string $orderby = 'id', string $order = 'asc' ) {
+	public function get_page( int $per_page, int $offset, string $orderby = 'id', string $order = 'asc', string $search = '' ) {
 		$orderby = in_array( $orderby, array( 'id', 'name', 'sku' ), true ) ? $orderby : 'id';
 		$order   = strtoupper( $order ) === 'DESC' ? 'DESC' : 'ASC';
 		$args    = array(
-			'limit'    => $per_page,
-			'offset'   => $offset,
-			'paginate' => false,
-			'return'   => 'objects',
-			'orderby'  => $orderby === 'name' ? 'title ID' : 'ID',
-			'order'    => $order,
+			'limit'           => $per_page,
+			'offset'          => $offset,
+			'paginate'        => false,
+			'return'          => 'objects',
+			'orderby'         => $orderby === 'name' ? 'title ID' : 'ID',
+			'order'           => $order,
+			'wokafoka_search' => $search,
 		);
 
 		if ( $orderby === 'sku' ) {
@@ -96,11 +98,11 @@ final class ProductQuery {
 			$statuses[] = 'private';
 		}
 
-		$sku_sorting = null;
+		$product_clauses = null;
 
-		if ( isset( $args['wokafoka_sku_order'] ) ) {
-			$sku_sorting = $this->get_sku_sorting_filter();
-			add_filter( 'posts_clauses', $sku_sorting, 10, 2 );
+		if ( isset( $args['wokafoka_sku_order'] ) || ( $args['wokafoka_search'] ?? '' ) !== '' ) {
+			$product_clauses = $this->get_product_clauses_filter();
+			add_filter( 'posts_clauses', $product_clauses, 10, 2 );
 		}
 
 		try {
@@ -117,19 +119,22 @@ final class ProductQuery {
 		} catch ( \Exception $exception ) {
 			return new \WP_Error( 'product_query_failed' );
 		} finally {
-			if ( $sku_sorting !== null ) {
-				remove_filter( 'posts_clauses', $sku_sorting, 10 );
+			if ( $product_clauses !== null ) {
+				remove_filter( 'posts_clauses', $product_clauses, 10 );
 			}
 		}
 	}
 
-	private function get_sku_sorting_filter(): \Closure {
+	private function get_product_clauses_filter(): \Closure {
 		return static function ( array $clauses, \WP_Query $query ): array {
 			global $wpdb;
 
-			$order = $query->get( 'wokafoka_sku_order' );
+			$order    = $query->get( 'wokafoka_sku_order' );
+			$sort_sku = in_array( $order, array( 'ASC', 'DESC' ), true );
+			$search   = $query->get( 'wokafoka_search' );
+			$search   = is_string( $search ) ? $search : '';
 
-			if ( ! in_array( $order, array( 'ASC', 'DESC' ), true ) ) {
+			if ( ! $sort_sku && $search === '' ) {
 				return $clauses;
 			}
 
@@ -138,7 +143,18 @@ final class ProductQuery {
 					. " ON ({$wpdb->posts}.ID = wokafoka_product_sorting.product_id)";
 			}
 
-			$clauses['orderby'] = "wokafoka_product_sorting.sku {$order}, {$wpdb->posts}.ID {$order}";
+			if ( $search !== '' ) {
+				$like = '%' . $wpdb->esc_like( $search ) . '%';
+				$clauses['where'] .= $wpdb->prepare(
+					" AND ({$wpdb->posts}.post_title LIKE %s OR wokafoka_product_sorting.sku LIKE %s)",
+					$like,
+					$like
+				);
+			}
+
+			if ( $sort_sku ) {
+				$clauses['orderby'] = "wokafoka_product_sorting.sku {$order}, {$wpdb->posts}.ID {$order}";
+			}
 
 			return $clauses;
 		};

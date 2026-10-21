@@ -74,6 +74,7 @@ final class BulkCategoriesPage {
 		$error     = $table->get_error();
 		$page_slug = self::SLUG;
 		$sorting   = $table->get_sorting();
+		$search    = $table->get_search();
 
 		require $this->template_path;
 	}

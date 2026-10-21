@@ -49,6 +49,14 @@ final class ProductsTable extends \WP_List_Table {
 		);
 	}
 
+	public function get_search(): string {
+		if ( ! isset( $_GET['s'] ) || ! is_string( $_GET['s'] ) ) {
+			return '';
+		}
+
+		return trim( wp_check_invalid_utf8( wp_unslash( $_GET['s'] ) ) );
+	}
+
 	public function prepare_items(): void {
 		$this->items = array();
 		$this->error = null;
@@ -61,7 +69,8 @@ final class ProductsTable extends \WP_List_Table {
 			)
 		);
 
-		$total_items = $this->query->count();
+		$search      = $this->get_search();
+		$total_items = $this->query->count( $search );
 
 		if ( is_wp_error( $total_items ) ) {
 			$this->error = $total_items;
@@ -84,7 +93,8 @@ final class ProductsTable extends \WP_List_Table {
 			$per_page,
 			( $this->get_pagenum() - 1 ) * $per_page,
 			$sorting['orderby'],
-			$sorting['order']
+			$sorting['order'],
+			$search
 		);
 
 		if ( is_wp_error( $items ) ) {
